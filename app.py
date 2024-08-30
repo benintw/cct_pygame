@@ -1,58 +1,156 @@
 import pygame
 import sys
+import random
+
+# Constants
+SCREEN_WIDTH = 864
+SCREEN_HEIGHT = 768
+TT_WIDTH = 100
+COIN_WIDTH = 50
+POWERUP_WIDTH = 50
+INITIAL_SPEED = 5
+POWERUP_DURATION = 300  # Frames (about 5 seconds at 60 FPS)
 
 # Initialize pygame
 pygame.init()
 
-# Set up display
-screen_width = 864
-screen_height = 768
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Simple Pygame App")
+class Player:
+    def __init__(self, image_path):
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (TT_WIDTH, self._get_scaled_height()))
+        self.flipped = False
+        self.x = (SCREEN_WIDTH - self.image.get_width()) // 2
+        self.y = SCREEN_HEIGHT - self.image.get_height() - 50
+        self.speed = INITIAL_SPEED
+        self.boosted = False
+        self.boost_timer = 0
 
-# Load images
-bg = pygame.image.load('bg.png')
-tt = pygame.image.load('tt.png')
+    def _get_scaled_height(self):
+        return int(self.image.get_height() * (TT_WIDTH / self.image.get_width()))
 
-# Resize the tt image to a more appropriate size
-tt_width = 100
-tt_height = int(tt.get_height() * (tt_width / tt.get_width()))
-tt = pygame.transform.scale(tt, (tt_width, tt_height))
+    def move(self, keys):
+        if keys[pygame.K_LEFT]:
+            self.x -= self.speed
+            if not self.flipped:
+                self.image = pygame.transform.flip(self.image, True, False)
+                self.flipped = True
 
-# Set initial position of the tt image
-tt_x = (screen_width - tt.get_width()) // 2
-tt_y = screen_height - tt.get_height() - 50  # Position it near the bottom
+        if keys[pygame.K_RIGHT]:
+            self.x += self.speed
+            if self.flipped:
+                self.image = pygame.transform.flip(self.image, True, False)
+                self.flipped = False
 
-# Set speed
-speed = 5
+        self._check_boundaries()
 
-# Main game loop
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+        if self.boosted:
+            self.boost_timer -= 1
+            if self.boost_timer <= 0:
+                self.speed = INITIAL_SPEED
+                self.boosted = False
 
-    # Get the keys pressed
-    keys = pygame.key.get_pressed()
-    
-    # Move tt image left or right
-    if keys[pygame.K_LEFT]:
-        tt_x -= speed
-    if keys[pygame.K_RIGHT]:
-        tt_x += speed
+    def _check_boundaries(self):
+        if self.x < 0:
+            self.x = 0
+        if self.x > SCREEN_WIDTH - self.image.get_width():
+            self.x = SCREEN_WIDTH - self.image.get_width()
 
-    # Boundary check to keep tt image within the screen
-    if tt_x < 0:
-        tt_x = 0
-    if tt_x > screen_width - tt.get_width():
-        tt_x = screen_width - tt.get_width()
+    def draw(self, surface):
+        surface.blit(self.image, (self.x, self.y))
 
-    # Draw background and tt image
-    screen.blit(bg, (0, 0))
-    screen.blit(tt, (tt_x, tt_y))
+    def get_rect(self):
+        return self.image.get_rect(topleft=(self.x, self.y))
 
-    # Update the display
-    pygame.display.flip()
-    pygame.time.Clock().tick(60)  # Cap the frame rate at 60 FPS
+    def activate_powerup(self):
+        self.speed = INITIAL_SPEED * 2
+        self.boosted = True
+        self.boost_timer = POWERUP_DURATION
+
+
+class Coin:
+    def __init__(self, image_path):
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (COIN_WIDTH, self._get_scaled_height()))
+        self.x = random.randint(0, SCREEN_WIDTH - self.image.get_width())
+        self.y = SCREEN_HEIGHT - self.image.get_height() - 60
+
+    def _get_scaled_height(self):
+        return int(self.image.get_height() * (COIN_WIDTH / self.image.get_width()))
+
+    def draw(self, surface):
+        surface.blit(self.image, (self.x, self.y))
+
+    def reset_position(self):
+        self.x = random.randint(0, SCREEN_WIDTH - self.image.get_width())
+
+    def get_rect(self):
+        return self.image.get_rect(topleft=(self.x, self.y))
+
+
+class PowerUp:
+    def __init__(self, image_path):
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (POWERUP_WIDTH, self._get_scaled_height()))
+        self.x = random.randint(0, SCREEN_WIDTH - self.image.get_width())
+        self.y = SCREEN_HEIGHT - self.image.get_height() - 60
+
+    def _get_scaled_height(self):
+        return int(self.image.get_height() * (POWERUP_WIDTH / self.image.get_width()))
+
+    def draw(self, surface):
+        surface.blit(self.image, (self.x, self.y))
+
+    def reset_position(self):
+        self.x = random.randint(0, SCREEN_WIDTH - self.image.get_width())
+        # self.y = random.randint(0, SCREEN_HEIGHT - self.image.get_height())
+
+    def get_rect(self):
+        return self.image.get_rect(topleft=(self.x, self.y))
+
+
+def main():
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption("Game with Power-Ups")
+    bg = pygame.image.load('bg.png')
+
+    player = Player('tt.png')
+    coin = Coin('coins.png')
+    powerup = PowerUp('powerup.png')
+
+    font = pygame.font.Font(None, 36)
+    score = 0
+    running = True
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        keys = pygame.key.get_pressed()
+        player.move(keys)
+
+        # Collision detection
+        if player.get_rect().colliderect(coin.get_rect()):
+            score += 1
+            coin.reset_position()
+
+        if player.get_rect().colliderect(powerup.get_rect()):
+            player.activate_powerup()
+            powerup.reset_position()
+
+        # Drawing
+        screen.blit(bg, (0, 0))
+        player.draw(screen)
+        coin.draw(screen)
+        powerup.draw(screen)
+
+        score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+        screen.blit(score_text, (10, 10))
+
+        pygame.display.flip()
+        pygame.time.Clock().tick(60)
+
+
+if __name__ == "__main__":
+    main()
