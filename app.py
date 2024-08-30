@@ -110,7 +110,7 @@ class PowerUp:
 
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Game with Power-Ups")
+    pygame.display.set_caption("婷婷&草莓號")
     bg = pygame.image.load('bg.png')
 
     player = Player('tt.png')
